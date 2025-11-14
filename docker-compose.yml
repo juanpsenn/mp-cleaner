@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  transaction-parser:
+    build: .
+    image: transaction-parser:latest
+    container_name: transaction-parser
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount current directory to access your files
+      - ./:/data
+    working_dir: /data
+    command: python -m transaction_parser.tui
