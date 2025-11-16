@@ -3,474 +3,956 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV Transaction Cleaner</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Transaction Parser</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-        /* Custom styles for file input */
-        .file-input-button {
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #444;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        select, input[type="file"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border: 2px dashed #d0d0d0;
+            border-radius: 8px;
+            text-align: center;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.3s;
         }
-        .file-input-button:hover {
-            background-color: #4f46e5;
+
+        .file-input-label:hover {
+            background: #e9ecef;
+            border-color: #667eea;
         }
-        #toast {
-            transition: opacity 0.5s, transform 0.5s;
+
+        input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-name {
+            margin-top: 8px;
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 40px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .results h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .currency-section {
+            margin-bottom: 25px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .currency-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .currency-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .transaction-count {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .transaction-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .transaction-row {
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: grid;
+            grid-template-columns: 100px 1fr 100px;
+            gap: 15px;
+        }
+
+        .transaction-row:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-date {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .transaction-desc {
+            color: #333;
+        }
+
+        .transaction-amount {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .transaction-amount.positive {
+            color: #22c55e;
+        }
+
+        .transaction-amount.negative {
+            color: #ef4444;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .action-buttons button {
+            margin-top: 0;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 2px solid #fcc;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 2px solid #cfc;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .info {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #bbdefb;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .results {
+            animation: fadeIn 0.4s ease-out;
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+<body>
+    <div id="root"></div>
 
-    <div class="w-full max-w-3xl bg-white rounded-xl shadow-lg p-6 md:p-8 space-y-6">
-        <!-- Header -->
-        <div class="text-center">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">CSV Transaction Cleaner</h1>
-            <p class="text-gray-600 mt-2">Upload a Mercado Pago CSV statement to clean and process transactions.</p>
-        </div>
+    <script type="text/babel">
+        const { useState } = React;
 
-        <!-- File Upload Section -->
-        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <input type="file" id="csvFile" accept=".csv" class="hidden">
-            <label for="csvFile" class="file-input-button inline-block bg-indigo-600 text-white font-semibold py-2 px-5 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Select CSV File
-            </label>
-            <p id="fileName" class="mt-3 text-sm text-gray-500">No file selected</p>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <button id="processBtn" class="w-full bg-green-600 text-white font-semibold py-3 px-5 rounded-lg shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                Process CSV
-            </button>
-            <button id="copyBtn" class="w-full bg-blue-600 text-white font-semibold py-3 px-5 rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                Copy CSV
-            </button>
-            <button id="downloadBtn" class="w-full bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                Download CSV
-            </button>
-        </div>
-
-        <!-- Results and Status Section -->
-        <div>
-            <h2 class="text-lg font-semibold text-gray-800 mb-2">Results</h2>
-            <div id="status" class="text-gray-600 mb-2">Please select and process a file.</div>
-            <div class="bg-gray-50 rounded-lg p-4 h-64 overflow-auto border border-gray-200">
-                <pre id="output" class="text-sm text-gray-700 whitespace-pre-wrap"></pre>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-2">
-        Copied to clipboard!
-    </div>
-
-    <script>
-        // DOM Elements
-        const csvFileInput = document.getElementById('csvFile');
-        const fileNameDisplay = document.getElementById('fileName');
-        const processBtn = document.getElementById('processBtn');
-        const copyBtn = document.getElementById('copyBtn');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const statusDisplay = document.getElementById('status');
-        const outputDisplay = document.getElementById('output');
-        const toast = document.getElementById('toast');
-
-        let csvOutput = '';
-
-        // Event Listeners
-        csvFileInput.addEventListener('change', () => {
-            if (csvFileInput.files.length > 0) {
-                fileNameDisplay.textContent = csvFileInput.files[0].name;
-                processBtn.disabled = false;
-                copyBtn.disabled = true;
-                downloadBtn.disabled = true;
-                outputDisplay.textContent = '';
-                statusDisplay.textContent = 'File selected. Ready to process.';
-            } else {
-                fileNameDisplay.textContent = 'No file selected';
-                processBtn.disabled = true;
-            }
-        });
-
-        processBtn.addEventListener('click', handleFileProcessing);
-        copyBtn.addEventListener('click', copyToClipboard);
-        downloadBtn.addEventListener('click', downloadCSV);
+        // TypeScript-like types defined in JSDoc comments
 
         /**
-         * Main function to handle the CSV file processing workflow.
+         * @typedef {'ARS' | 'USD'} Currency
          */
-        async function handleFileProcessing() {
-            const file = csvFileInput.files[0];
-            if (!file) {
-                statusDisplay.textContent = 'Error: No file selected.';
-                return;
+
+        /**
+         * @typedef {Object} Transaction
+         * @property {Date} date
+         * @property {string} description
+         * @property {number} amount
+         * @property {Currency} currency
+         */
+
+        /**
+         * @typedef {Object} TransactionBatch
+         * @property {Transaction[]} transactions
+         * @property {Currency} currency
+         * @property {string} provider
+         */
+
+        /**
+         * @typedef {'santander' | 'mercadopago'} BankType
+         */
+
+        // Parser implementations
+
+        class BaseParser {
+            constructor(file) {
+                this.file = file;
             }
 
-            // Disable buttons and show loading state
-            processBtn.disabled = true;
-            copyBtn.disabled = true;
-            downloadBtn.disabled = true;
-            statusDisplay.textContent = 'Processing... This may take a moment.';
-            outputDisplay.textContent = '';
+            async parse() {
+                const rawData = await this.readFile();
+                const transactions = await this.extractTransactions(rawData);
+                const validTransactions = this.validateTransactions(transactions);
+                return this.groupByCurrency(validTransactions);
+            }
 
-            try {
-                const fileReader = new FileReader();
-                fileReader.onload = async (event) => {
-                    try {
-                        const csvContent = event.target.result;
-                        const cleanedData = processCSV(csvContent);
-                        
-                        if (cleanedData.length > 0) {
-                            csvOutput = convertToCSV(cleanedData);
-                            outputDisplay.textContent = csvOutput;
-                            statusDisplay.textContent = `Successfully processed ${cleanedData.length} transactions.`;
-                            copyBtn.disabled = false;
-                            downloadBtn.disabled = false;
-                        } else {
-                            statusDisplay.textContent = 'No valid transactions found in the CSV.';
-                            outputDisplay.textContent = 'Could not parse any data. Please check if the CSV format is correct.';
-                        }
-                    } catch (error) {
-                        console.error('Error during CSV processing:', error);
-                        statusDisplay.textContent = `An error occurred during processing: ${error.message}`;
-                        outputDisplay.textContent = 'Failed to process the CSV. It might be corrupted or in an unexpected format.';
-                    } finally {
-                        processBtn.disabled = false;
+            validateTransactions(transactions) {
+                return transactions.filter(t => t.description && t.description.trim() !== '');
+            }
+
+            groupByCurrency(transactions) {
+                const batches = {};
+
+                transactions.forEach(transaction => {
+                    const currency = transaction.currency;
+                    if (!batches[currency]) {
+                        batches[currency] = {
+                            transactions: [],
+                            currency: currency,
+                            provider: this.getProviderName()
+                        };
                     }
-                };
-                fileReader.onerror = () => {
-                     statusDisplay.textContent = 'Error reading file.';
-                     processBtn.disabled = false;
-                };
-                fileReader.readAsText(file, 'UTF-8');
-            } catch (error) {
-                console.error('Error setting up file reader:', error);
-                statusDisplay.textContent = `An error occurred: ${error.message}`;
-                outputDisplay.textContent = 'Failed to read the file.';
-                processBtn.disabled = false;
-            }
-        }
-
-        /**
-         * Processes the CSV content according to the specified rules.
-         * @param {string} csvContent - The raw CSV content.
-         * @returns {Array<Object>} An array of processed transaction objects.
-         */
-        function processCSV(csvContent) {
-            // Don't filter empty lines initially - we need accurate line indexing
-            const lines = csvContent.split('\n').map(line => line.trim());
-            
-            console.log('Total lines:', lines.length);
-            console.log('First 6 lines:', lines.slice(0, 6));
-            
-            // Remove first 3 rows, use 4th row as header
-            if (lines.length < 4) {
-                throw new Error('CSV file must have at least 4 rows');
-            }
-            
-            const headerLine = lines[3];
-            const dataLines = lines.slice(4).filter(line => line); // Filter empty lines only for data
-            
-            console.log('Header line:', headerLine);
-            console.log('Data lines count:', dataLines.length);
-            console.log('First data line:', dataLines[0]);
-            
-            // Parse header - try both comma and semicolon separators
-            let headers = parseCSVLine(headerLine, ',');
-            let separator = ',';
-            
-            // If we get only one column with commas, try semicolons
-            if (headers.length === 1 && headerLine.includes(';')) {
-                headers = parseCSVLine(headerLine, ';');
-                separator = ';';
-            }
-            
-            console.log('Headers:', headers);
-            console.log('Separator:', separator);
-            
-            // Process each data row
-            const processedData = [];
-            
-            for (let i = 0; i < dataLines.length; i++) {
-                const line = dataLines[i];
-                if (!line.trim()) continue;
-                
-                const values = parseCSVLine(line, separator);
-                console.log(`Row ${i}:`, values);
-                
-                if (values.length !== headers.length) {
-                    console.log(`Row ${i} length mismatch: ${values.length} vs ${headers.length}`);
-                    continue;
-                }
-                
-                // Create object from headers and values
-                const row = {};
-                headers.forEach((header, index) => {
-                    row[header.trim()] = values[index] ? values[index].trim() : '';
+                    batches[currency].transactions.push(transaction);
                 });
-                
-                console.log(`Row ${i} object:`, row);
-                
-                // Clean the data according to specifications
-                const cleanedRow = cleanRowData(row);
-                console.log(`Row ${i} cleaned:`, cleanedRow);
-                
-                if (cleanedRow) {
-                    processedData.push(cleanedRow);
-                }
+
+                // Sort by date (newest first)
+                Object.values(batches).forEach(batch => {
+                    batch.transactions.sort((a, b) => b.date - a.date);
+                });
+
+                return batches;
             }
-            
-            console.log('Final processed data:', processedData);
-            
-            // Sort by date in descending order (newest first)
-            processedData.sort((a, b) => {
-                // Convert DD/MM/YYYY to Date objects for comparison
-                const dateA = new Date(a.fecha.split('/').reverse().join('-'));
-                const dateB = new Date(b.fecha.split('/').reverse().join('-'));
-                return dateB - dateA; // Descending order (newest first)
-            });
-            
-            console.log('Sorted processed data:', processedData);
-            return processedData;
+
+            async readFile() {
+                throw new Error('Must implement readFile');
+            }
+
+            async extractTransactions(rawData) {
+                throw new Error('Must implement extractTransactions');
+            }
+
+            getProviderName() {
+                throw new Error('Must implement getProviderName');
+            }
         }
 
-        /**
-         * Parses a single CSV line, handling quoted values and custom separator.
-         * @param {string} line - The CSV line to parse.
-         * @param {string} separator - The separator to use (comma or semicolon).
-         * @returns {Array<string>} Array of values.
-         */
-        function parseCSVLine(line, separator = ',') {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-            
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                
-                if (char === '"') {
-                    if (inQuotes && line[i + 1] === '"') {
-                        // Escaped quote
-                        current += '"';
-                        i++; // Skip next quote
+        class SantanderParser extends BaseParser {
+            getProviderName() {
+                return 'santander';
+            }
+
+            async readFile() {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+                            resolve(jsonData);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(this.file);
+                });
+            }
+
+            sanitizeAmount(value) {
+                if (!value || value === '') return null;
+
+                const valueStr = String(value).trim();
+                // Remove currency symbols and spaces
+                const cleaned = valueStr.replace(/[U$DS\s]/g, '');
+                // Replace comma with dot for decimal separator, remove dots used for thousands
+                const normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+
+                try {
+                    const amount = parseFloat(normalized);
+                    return -amount; // Negate the amount
+                } catch {
+                    return null;
+                }
+            }
+
+            formatDatePlusOne(dateValue) {
+                if (!dateValue) return null;
+
+                let date;
+                if (typeof dateValue === 'string') {
+                    const parts = dateValue.split('/');
+                    if (parts.length === 3) {
+                        date = new Date(parts[2], parts[1] - 1, parts[0]);
                     } else {
-                        // Toggle quote state
-                        inQuotes = !inQuotes;
+                        return null;
                     }
-                } else if (char === separator && !inQuotes) {
-                    // End of field
-                    result.push(current);
-                    current = '';
+                } else if (typeof dateValue === 'number') {
+                    // Excel date number
+                    date = new Date((dateValue - 25569) * 86400 * 1000);
                 } else {
-                    current += char;
+                    date = new Date(dateValue);
+                }
+
+                // Add 1 day
+                date.setDate(date.getDate() + 1);
+                return date;
+            }
+
+            buildDescription(cuotas, descripcion, comprobante) {
+                const parts = [];
+
+                if (descripcion && descripcion !== '' && descripcion !== '-') {
+                    let desc = String(descripcion).trim();
+                    if (desc.endsWith(' - ')) {
+                        desc = desc.slice(0, -3);
+                    }
+                    if (desc && desc !== '-') {
+                        parts.push(desc);
+                    }
+                }
+
+                if (cuotas && String(cuotas).trim() !== '' && String(cuotas).trim() !== '-') {
+                    parts.push(String(cuotas).trim());
+                }
+
+                if (comprobante && String(comprobante).trim() !== '' && String(comprobante).trim() !== '-') {
+                    parts.push(String(comprobante).trim());
+                }
+
+                return parts.join(' - ');
+            }
+
+            extractTransactionsFromSection(data, startRow) {
+                const transactions = [];
+
+                // Find header row
+                let headerRow = null;
+                for (let i = startRow; i < Math.min(startRow + 10, data.length); i++) {
+                    const row = data[i];
+                    if (row[0] && String(row[0]).includes('Fecha') ||
+                        row[1] && String(row[1]).includes('Fecha')) {
+                        headerRow = i;
+                        break;
+                    }
+                }
+
+                if (headerRow === null) return transactions;
+
+                const dataStart = headerRow + 1;
+                let lastValidDate = null;
+
+                for (let i = dataStart; i < data.length; i++) {
+                    const row = data[i];
+
+                    // Check if we hit a new section
+                    const firstCell = row[0] ? String(row[0]).trim() : '';
+                    if (firstCell.startsWith('Tarjeta de') ||
+                        firstCell.startsWith('Pago de') ||
+                        firstCell.startsWith('Últimos')) {
+                        break;
+                    }
+
+                    // Determine column offset based on where date is
+                    let fecha = null;
+                    let colOffset = 0;
+
+                    if (row[0] && String(row[0]).includes('/')) {
+                        fecha = row[0];
+                        colOffset = 0;
+                        lastValidDate = fecha;
+                    } else if (row[1] && String(row[1]).includes('/')) {
+                        fecha = row[1];
+                        colOffset = 1;
+                        lastValidDate = fecha;
+                    } else {
+                        fecha = lastValidDate;
+                        colOffset = 0;
+                    }
+
+                    if (!fecha) continue;
+
+                    const descripcion = row[1 + colOffset] || '';
+                    const cuotas = row[2 + colOffset] || '';
+                    const comprobante = row[3 + colOffset] || '';
+                    const montoPesos = row[4 + colOffset] || '';
+                    const montoDolares = row[5 + colOffset] || '';
+
+                    // Skip empty rows
+                    if (!descripcion || String(descripcion).trim() === '') continue;
+
+                    const parsedDate = this.formatDatePlusOne(fecha);
+                    if (!parsedDate) continue;
+
+                    const description = this.buildDescription(cuotas, descripcion, comprobante);
+
+                    // ARS transaction
+                    const amountArs = this.sanitizeAmount(montoPesos);
+                    if (amountArs !== null) {
+                        transactions.push({
+                            date: parsedDate,
+                            description: description,
+                            amount: amountArs,
+                            currency: 'ARS'
+                        });
+                    }
+
+                    // USD transaction
+                    const amountUsd = this.sanitizeAmount(montoDolares);
+                    if (amountUsd !== null) {
+                        transactions.push({
+                            date: parsedDate,
+                            description: description,
+                            amount: amountUsd,
+                            currency: 'USD'
+                        });
+                    }
+                }
+
+                return transactions;
+            }
+
+            async extractTransactions(rawData) {
+                const allTransactions = [];
+
+                for (let i = 0; i < rawData.length; i++) {
+                    const row = rawData[i];
+                    const rowStr = row.join(' ');
+
+                    if (rowStr.includes('Pago de tarjeta y devoluciones')) {
+                        const transactions = this.extractTransactionsFromSection(rawData, i);
+                        allTransactions.push(...transactions);
+                    } else if (rowStr.includes('Tarjeta de') && rowStr.includes('terminada en')) {
+                        const transactions = this.extractTransactionsFromSection(rawData, i);
+                        allTransactions.push(...transactions);
+                    }
+                }
+
+                return allTransactions;
+            }
+        }
+
+        class MercadoPagoParser extends BaseParser {
+            getProviderName() {
+                return 'mercadopago';
+            }
+
+            async readFile() {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const text = e.target.result;
+                            // Don't filter empty lines - keep original indices like Python version
+                            const lines = text.split('\n');
+
+                            if (lines.length < 5) {
+                                reject(new Error('CSV file must have at least 5 rows'));
+                                return;
+                            }
+
+                            // Get header from 4th row (index 3)
+                            const headerLine = lines[3].trim();
+
+                            // Get data from 5th row onwards (index 4+), filtering empty lines
+                            const dataLines = lines.slice(4).map(line => line.trim()).filter(line => line);
+
+                            // Detect separator
+                            const separator = this.detectSeparator(headerLine);
+
+                            // Parse header and trim each header name
+                            const headers = this.parseCSVLine(headerLine, separator).map(h => h.trim());
+
+                            // Parse data rows
+                            const rows = dataLines.map(line => {
+                                const values = this.parseCSVLine(line, separator);
+                                if (values.length === headers.length) {
+                                    const row = {};
+                                    headers.forEach((header, idx) => {
+                                        row[header] = values[idx];
+                                    });
+                                    return row;
+                                }
+                                return null;
+                            }).filter(row => row !== null);
+
+                            resolve(rows);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = reject;
+                    reader.readAsText(this.file, 'utf-8');
+                });
+            }
+
+            detectSeparator(line) {
+                let commaCount = 0;
+                let semicolonCount = 0;
+                let inQuotes = false;
+
+                for (const char of line) {
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (!inQuotes) {
+                        if (char === ',') commaCount++;
+                        else if (char === ';') semicolonCount++;
+                    }
+                }
+
+                return semicolonCount > commaCount ? ';' : ',';
+            }
+
+            parseCSVLine(line, separator = ',') {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+
+                    if (char === '"') {
+                        if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === separator && !inQuotes) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+
+                result.push(current.trim());
+                return result;
+            }
+
+            convertToInteger(argentineAmount) {
+                if (!argentineAmount || argentineAmount.trim() === '') return null;
+
+                const cleanAmount = argentineAmount.trim();
+                const isNegative = cleanAmount.startsWith('-');
+                const withoutSign = isNegative ? cleanAmount.slice(1) : cleanAmount;
+
+                // Remove dots and split by comma
+                const parts = withoutSign.replace(/\./g, '').split(',');
+
+                try {
+                    const integerPart = parts[0] ? parseInt(parts[0], 10) : 0;
+                    return isNegative ? -integerPart : integerPart;
+                } catch {
+                    return null;
                 }
             }
-            
-            // Add last field
-            result.push(current);
-            
-            return result;
-        }
 
-        /**
-         * Converts Argentine number format to integer.
-         * Examples: "1.809,09" -> 1809, "-24.000,00" -> -24000, "1.514,59" -> 1514
-         * @param {string} argentineAmount - Amount in Argentine format (dots for thousands, comma for decimal)
-         * @returns {number} Integer amount (removes decimal part)
-         */
-        function convertToInteger(argentineAmount) {
-            if (!argentineAmount || !argentineAmount.trim()) return 0;
-            
-            let cleanAmount = argentineAmount.trim();
-            
-            // Handle negative amounts
-            const isNegative = cleanAmount.startsWith('-');
-            if (isNegative) {
-                cleanAmount = cleanAmount.substring(1);
-            }
-            
-            // Remove dots (thousands separators) and split by comma (decimal separator)
-            const parts = cleanAmount.replace(/\./g, '').split(',');
-            const integerPart = parseInt(parts[0]) || 0;
-            
-            return isNegative ? -integerPart : integerPart;
-        }
+            addOneDayAndFormat(dateStr) {
+                if (!dateStr || dateStr.trim() === '') return null;
 
-        /**
-         * Adds one day to a date and formats it as DD/MM/YYYY.
-         * @param {string} dateStr - Date in DD-MM-YYYY format
-         * @returns {string} Date with one day added in DD/MM/YYYY format
-         */
-        function addOneDayAndFormat(dateStr) {
-            if (!dateStr || !dateStr.trim()) return '';
-            
-            // Parse DD-MM-YYYY format
-            const parts = dateStr.trim().split('-');
-            if (parts.length !== 3) return dateStr;
-            
-            const day = parseInt(parts[0]);
-            const month = parseInt(parts[1]);
-            const year = parseInt(parts[2]);
-            
-            // Create date object (month is 0-indexed in JavaScript)
-            const date = new Date(year, month - 1, day);
-            
-            // Add one day
-            date.setDate(date.getDate() + 1);
-            
-            // Format back to DD/MM/YYYY
-            const newDay = String(date.getDate()).padStart(2, '0');
-            const newMonth = String(date.getMonth() + 1).padStart(2, '0');
-            const newYear = date.getFullYear();
-            
-            return `${newDay}/${newMonth}/${newYear}`;
-        }
+                const parts = dateStr.trim().split('-');
+                if (parts.length !== 3) return null;
 
-        /**
-         * Cleans row data according to the specified rules.
-         * @param {Object} row - The raw row object.
-         * @returns {Object|null} The cleaned row object or null if invalid.
-         */
-        function cleanRowData(row) {
-            // Get the actual values from the known column structure
-            const date = row['RELEASE_DATE'] || '';
-            let transactionType = row['TRANSACTION_TYPE'] || '';
-            const referenceId = row['REFERENCE_ID'] || '';
-            const amount = row['TRANSACTION_NET_AMOUNT'] || '';
-            
-            // Skip if no date (empty rows)
-            if (!date || !date.trim()) {
-                return null;
+                try {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10);
+                    const year = parseInt(parts[2], 10);
+
+                    const date = new Date(year, month - 1, day);
+                    date.setDate(date.getDate() + 1);
+
+                    return date;
+                } catch {
+                    return null;
+                }
             }
 
-            // Clean transaction type - remove "Transferencia enviada" or "Transferencia recibida"
-            transactionType = transactionType.replace(/transferencia\s+(enviada|recibida)\s*/gi, '').trim();
-            
-            // Create new description by concatenating transaction type and reference ID
-            let description = '';
-            if (transactionType && referenceId) {
-                description = `${transactionType} - ${referenceId}`;
-            } else if (transactionType) {
-                description = transactionType;
-            } else if (referenceId) {
-                description = referenceId;
-            } else {
-                description = 'Transaction';
+            cleanTransactionType(transactionType) {
+                if (!transactionType) return '';
+
+                const cleaned = transactionType.replace(
+                    /transferencia\s+(enviada|recibida)\s*/gi,
+                    ''
+                );
+
+                return cleaned.trim();
             }
-            
-            // Add one day to the date and format as DD/MM/YYYY
-            const formattedDate = addOneDayAndFormat(date);
-            
-            // Convert amount to integer
-            const integerAmount = convertToInteger(amount);
-            
-            // Return cleaned row
-            return {
-                fecha: formattedDate,
-                descripcion: description.trim(),
-                monto: integerAmount
-            };
+
+            async extractTransactions(rawData) {
+                const transactions = [];
+
+                for (const row of rawData) {
+                    const dateStr = (row['RELEASE_DATE'] || '').trim();
+                    const transactionType = (row['TRANSACTION_TYPE'] || '').trim();
+                    const referenceId = (row['REFERENCE_ID'] || '').trim();
+                    const amountStr = (row['TRANSACTION_NET_AMOUNT'] || '').trim();
+
+                    if (!dateStr) continue;
+
+                    const parsedDate = this.addOneDayAndFormat(dateStr);
+                    if (!parsedDate) continue;
+
+                    const cleanType = this.cleanTransactionType(transactionType);
+
+                    const descriptionParts = [];
+                    if (cleanType) descriptionParts.push(cleanType);
+                    if (referenceId) descriptionParts.push(referenceId);
+
+                    const description = descriptionParts.length > 0
+                        ? descriptionParts.join(' - ')
+                        : 'Transaction';
+
+                    const amount = this.convertToInteger(amountStr);
+                    if (amount === null) continue;
+
+                    transactions.push({
+                        date: parsedDate,
+                        description: description,
+                        amount: amount,
+                        currency: 'ARS'
+                    });
+                }
+
+                return transactions;
+            }
         }
 
-        /**
-         * Converts an array of transaction objects to a CSV formatted string.
-         * Properly handles CSV escaping for fields containing commas, quotes, or newlines.
-         * @param {Array<Object>} data - The array of transactions.
-         * @returns {string} The CSV string.
-         */
-        function convertToCSV(data) {
-            if (data.length === 0) return '';
-            
-            // Use all keys from the first object as headers
-            const headers = Object.keys(data[0]);
-            const headerLine = headers.join(',');
-            
-            const rows = data.map(row => {
-                return headers.map(header => {
-                    let value = String(row[header] || '');
-                    
-                    // CSV escaping: wrap in quotes if the value contains:
-                    // - Commas (like "Area, Maria Lucia - 119118545859")
-                    // - Double quotes 
-                    // - Newlines
-                    if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-                        // Escape any existing quotes by doubling them
-                        value = value.replace(/"/g, '""');
-                        // Wrap the entire value in quotes
-                        value = '"' + value + '"';
-                    }
-                    
-                    return value;
-                }).join(',');
+        // Helper functions for CSV export and clipboard
+
+        function transactionsToCsv(transactions) {
+            const rows = [['date', 'description', 'amount']];
+
+            transactions.forEach(t => {
+                const date = `${String(t.date.getDate()).padStart(2, '0')}/${String(t.date.getMonth() + 1).padStart(2, '0')}/${t.date.getFullYear()}`;
+                rows.push([date, t.description, t.amount]);
             });
-            
-            return [headerLine, ...rows].join('\n');
+
+            return rows.map(row => {
+                return row.map((cell, idx) => {
+                    // Quote all cells to handle commas in descriptions
+                    if (idx === 1) { // description column
+                        return `"${String(cell).replace(/"/g, '""')}"`;
+                    }
+                    return cell;
+                }).join(',');
+            }).join('\n');
         }
 
-        /**
-         * Triggers a download of the generated CSV file.
-         */
-        function downloadCSV() {
-            if (!csvOutput) return;
-
-            const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+        function downloadCsv(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
             link.setAttribute('href', url);
-            link.setAttribute('download', 'cleaned_transactions.csv');
+            link.setAttribute('download', filename);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        /**
-         * Copies the generated CSV string to the clipboard.
-         */
-        function copyToClipboard() {
-            if (!csvOutput) return;
-            const textArea = document.createElement('textarea');
-            textArea.value = csvOutput;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-9999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showToast('Copied to clipboard!');
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-                showToast('Failed to copy!', true);
-            }
-            document.body.removeChild(textArea);
+        function copyToClipboard(text) {
+            return navigator.clipboard.writeText(text);
         }
 
-        /**
-         * Shows a toast notification.
-         * @param {string} message - The message to display.
-         * @param {boolean} isError - If true, shows an error style.
-         */
-        function showToast(message, isError = false) {
-            toast.textContent = message;
-            toast.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform translate-y-2 ${isError ? 'bg-red-600' : 'bg-gray-900'}`;
-            requestAnimationFrame(() => {
-                toast.classList.remove('opacity-0', 'translate-y-2');
-                toast.classList.add('opacity-100', 'transform-none');
-            });
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'transform-none');
-                toast.classList.add('opacity-0', 'translate-y-2');
-            }, 3000);
+        // Main App Component
+
+        function App() {
+            const [bank, setBank] = useState('');
+            const [file, setFile] = useState(null);
+            const [results, setResults] = useState(null);
+            const [error, setError] = useState(null);
+            const [processing, setProcessing] = useState(false);
+            const [copySuccess, setCopySuccess] = useState({});
+
+            const handleFileChange = (e) => {
+                setFile(e.target.files[0]);
+                setError(null);
+                setResults(null);
+                setCopySuccess({});
+            };
+
+            const handleBankChange = (e) => {
+                setBank(e.target.value);
+                setError(null);
+                setResults(null);
+                setCopySuccess({});
+            };
+
+            const handleProcess = async () => {
+                if (!bank || !file) {
+                    setError('Please select both a bank and a file');
+                    return;
+                }
+
+                setProcessing(true);
+                setError(null);
+                setResults(null);
+                setCopySuccess({});
+
+                try {
+                    let parser;
+                    if (bank === 'santander') {
+                        parser = new SantanderParser(file);
+                    } else if (bank === 'mercadopago') {
+                        parser = new MercadoPagoParser(file);
+                    } else {
+                        throw new Error('Invalid bank selection');
+                    }
+
+                    const batches = await parser.parse();
+                    setResults(batches);
+                } catch (err) {
+                    setError(`Error processing file: ${err.message}`);
+                } finally {
+                    setProcessing(false);
+                }
+            };
+
+            const handleCopy = async (currency) => {
+                const batch = results[currency];
+                const csvContent = transactionsToCsv(batch.transactions);
+
+                try {
+                    await copyToClipboard(csvContent);
+                    setCopySuccess({ ...copySuccess, [currency]: true });
+                    setTimeout(() => {
+                        setCopySuccess({ ...copySuccess, [currency]: false });
+                    }, 2000);
+                } catch (err) {
+                    setError(`Failed to copy to clipboard: ${err.message}`);
+                }
+            };
+
+            const handleDownload = (currency) => {
+                const batch = results[currency];
+                const csvContent = transactionsToCsv(batch.transactions);
+                const filename = `transactions_${currency.toLowerCase()}.csv`;
+                downloadCsv(csvContent, filename);
+            };
+
+            return (
+                <div className="container">
+                    <h1>Transaction Parser</h1>
+                    <p className="subtitle">Parse and export bank transactions from Santander and MercadoPago</p>
+
+                    <div className="info">
+                        <strong>Supported formats:</strong> Santander Excel (.xlsx) files and MercadoPago CSV files
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="bank-select">Select Bank</label>
+                        <select
+                            id="bank-select"
+                            value={bank}
+                            onChange={handleBankChange}
+                        >
+                            <option value="">-- Select a bank --</option>
+                            <option value="santander">Santander</option>
+                            <option value="mercadopago">MercadoPago</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="file-input">Upload Transaction File</label>
+                        <div className="file-input-wrapper">
+                            <input
+                                type="file"
+                                id="file-input"
+                                onChange={handleFileChange}
+                                accept={bank === 'santander' ? '.xlsx' : bank === 'mercadopago' ? '.csv' : '*'}
+                            />
+                            <label htmlFor="file-input" className="file-input-label">
+                                {file ? '✓ File selected' : 'Click to select file'}
+                            </label>
+                        </div>
+                        {file && <div className="file-name">📄 {file.name}</div>}
+                    </div>
+
+                    <button
+                        onClick={handleProcess}
+                        disabled={!bank || !file || processing}
+                    >
+                        {processing ? 'Processing...' : 'Process File'}
+                    </button>
+
+                    {error && <div className="error">{error}</div>}
+
+                    {results && (
+                        <div className="results">
+                            <h2>Results</h2>
+                            {Object.entries(results).map(([currency, batch]) => (
+                                <div key={currency} className="currency-section">
+                                    <div className="currency-header">
+                                        <div className="currency-title">{currency} Transactions</div>
+                                        <div className="transaction-count">
+                                            {batch.transactions.length} transactions
+                                        </div>
+                                    </div>
+
+                                    <div className="transaction-preview">
+                                        {batch.transactions.slice(0, 10).map((t, idx) => (
+                                            <div key={idx} className="transaction-row">
+                                                <div className="transaction-date">
+                                                    {`${String(t.date.getDate()).padStart(2, '0')}/${String(t.date.getMonth() + 1).padStart(2, '0')}/${t.date.getFullYear()}`}
+                                                </div>
+                                                <div className="transaction-desc">{t.description}</div>
+                                                <div className={`transaction-amount ${t.amount >= 0 ? 'positive' : 'negative'}`}>
+                                                    {t.amount.toLocaleString('en-US')}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {batch.transactions.length > 10 && (
+                                            <div style={{textAlign: 'center', marginTop: '10px', color: '#666'}}>
+                                                ... and {batch.transactions.length - 10} more transactions
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="action-buttons">
+                                        <button onClick={() => handleCopy(currency)}>
+                                            📋 Copy to Clipboard
+                                        </button>
+                                        <button onClick={() => handleDownload(currency)}>
+                                            💾 Download CSV
+                                        </button>
+                                    </div>
+
+                                    {copySuccess[currency] && (
+                                        <div className="success">
+                                            ✓ Copied to clipboard!
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
         }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
