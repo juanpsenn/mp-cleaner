@@ -561,24 +561,25 @@
                     reader.onload = (e) => {
                         try {
                             const text = e.target.result;
-                            const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+                            // Don't filter empty lines - keep original indices like Python version
+                            const lines = text.split('\n');
 
-                            if (lines.length < 4) {
-                                reject(new Error('CSV file must have at least 4 rows'));
+                            if (lines.length < 5) {
+                                reject(new Error('CSV file must have at least 5 rows'));
                                 return;
                             }
 
                             // Get header from 4th row (index 3)
-                            const headerLine = lines[3];
+                            const headerLine = lines[3].trim();
 
-                            // Get data from 5th row onwards
-                            const dataLines = lines.slice(4);
+                            // Get data from 5th row onwards (index 4+), filtering empty lines
+                            const dataLines = lines.slice(4).map(line => line.trim()).filter(line => line);
 
                             // Detect separator
                             const separator = this.detectSeparator(headerLine);
 
-                            // Parse header
-                            const headers = this.parseCSVLine(headerLine, separator);
+                            // Parse header and trim each header name
+                            const headers = this.parseCSVLine(headerLine, separator).map(h => h.trim());
 
                             // Parse data rows
                             const rows = dataLines.map(line => {
