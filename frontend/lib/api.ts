@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-export interface Record {
+export interface FinancialRecord {
   id: number;
   date: string;
   description: string;
@@ -27,7 +27,7 @@ export interface DashboardSummary {
   transactionCount: number;
   spendByCategory: Record<string, number>;
   spendByMonth: MonthlySpend[];
-  topExpenses: Record[];
+  topExpenses: FinancialRecord[];
 }
 
 export interface MonthlySpend {
@@ -57,13 +57,13 @@ export interface RecordFilter {
 // API methods
 export const recordsApi = {
   // Create a new record
-  createRecord: async (record: Omit<Record, 'id' | 'createdAt'>): Promise<Record> => {
-    const response = await api.post<Record>('/api/records', record);
+  createRecord: async (record: Omit<FinancialRecord, 'id' | 'createdAt'>): Promise<FinancialRecord> => {
+    const response = await api.post<FinancialRecord>('/api/records', record);
     return response.data;
   },
 
   // Get all records with optional filters
-  getRecords: async (filter?: RecordFilter): Promise<Record[]> => {
+  getRecords: async (filter?: RecordFilter): Promise<FinancialRecord[]> => {
     const params = new URLSearchParams();
     if (filter?.accountId) params.append('accountId', filter.accountId);
     if (filter?.sortBy) params.append('sortBy', filter.sortBy);
@@ -72,7 +72,7 @@ export const recordsApi = {
     if (filter?.endDate) params.append('endDate', filter.endDate);
     if (filter?.currency) params.append('currency', filter.currency);
 
-    const response = await api.get<Record[]>(`/api/records?${params.toString()}`);
+    const response = await api.get<FinancialRecord[]>(`/api/records?${params.toString()}`);
     return response.data;
   },
 
